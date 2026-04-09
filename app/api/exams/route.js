@@ -4,7 +4,7 @@ import { NextResponse } from 'next/server'
 export async function POST(req) {
   const { username, password } = await req.json()
   try {
-    const untis = new WebUntis('gydo', username, password, 'gydo.webuntis.net')
+  const untis = new WebUntis('gydo', username, password, 'gydo.webuntis.com')
     await untis.login()
 
     const today = new Date()
