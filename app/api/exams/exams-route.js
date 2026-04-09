@@ -1,0 +1,20 @@
+import { WebUntis } from 'webuntis'
+import { NextResponse } from 'next/server'
+
+export async function POST(req) {
+  const { username, password } = await req.json()
+  try {
+    const untis = new WebUntis('gydo', username, password, 'gydo.webuntis.net')
+    await untis.login()
+
+    const today = new Date()
+    const in8weeks = new Date()
+    in8weeks.setDate(today.getDate() + 56)
+
+    const exams = await untis.getExamsForRange(today, in8weeks)
+    await untis.logout()
+    return NextResponse.json({ exams })
+  } catch (e) {
+    return NextResponse.json({ error: e.message }, { status: 500 })
+  }
+}
