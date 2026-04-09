@@ -2,21 +2,9 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 
-function formatDate(d) {
-  return new Date(d).toLocaleDateString('de-DE', { weekday: 'short', day: '2-digit', month: '2-digit' })
-}
-
-function daysUntil(dateStr) {
-  const now = new Date()
-  now.setHours(0,0,0,0)
-  const target = new Date(dateStr)
-  target.setHours(0,0,0,0)
-  return Math.round((target - now) / 86400000)
-}
-
 function parseUntisDate(d) {
   const s = String(d)
-  return `${s.slice(0,4)}-${s.slice(4,6)}-${s.slice(6,8)}`
+  return new Date(`${s.slice(0,4)}-${s.slice(4,6)}-${s.slice(6,8)}`)
 }
 
 function parseUntisTime(t) {
@@ -24,29 +12,40 @@ function parseUntisTime(t) {
   return `${s.slice(0,2)}:${s.slice(2,4)}`
 }
 
-function isToday(dateInt) {
-  const s = String(dateInt)
-  const d = new Date(`${s.slice(0,4)}-${s.slice(4,6)}-${s.slice(6,8)}`)
+function formatDate(d) {
+  return d.toLocaleDateString('de-DE', { weekday: 'short', day: '2-digit', month: '2-digit' })
+}
+
+function isDateToday(d) {
   const now = new Date()
   return d.toDateString() === now.toDateString()
 }
 
+function isDateTomorrow(d) {
+  const tomorrow = new Date()
+  tomorrow.setDate(tomorrow.getDate() + 1)
+  return d.toDateString() === tomorrow.toDateString()
+}
+
 function isCancelled(lesson) {
-  return lesson.code === 'cancelled' || lesson.lstext?.toLowerCase().includes('entfall') || lesson.statflags?.includes('~')
+  return lesson.code === 'cancelled'
 }
 
 function isSubstitution(lesson) {
-  return lesson.code === 'irregular' || lesson.lstext?.length > 0
+  return lesson.code === 'irregular' || (lesson.lstext && lesson.lstext.length > 0)
+}
+
+function hasRoomChange(lesson) {
+  return lesson.ro?.[0]?.id === 0 && lesson.ro?.[0]?.orgid
 }
 
 export default function Dashboard() {
   const router = useRouter()
   const [timetable, setTimetable] = useState([])
-  const [exams, setExams] = useState([])
-  const [news, setNews] = useState([])
   const [loading, setLoading] = useState(true)
   const [clock, setClock] = useState('')
   const [username, setUsername] = useState('')
+  const [selectedDay, setSelectedDay] = useState(null)
 
   useEffect(() => {
     const u = sessionStorage.getItem('untis_user')
@@ -56,15 +55,13 @@ export default function Dashboard() {
 
     async function load() {
       try {
-        const [ttRes, exRes] = await Promise.all([
-          fetch('/api/timetable', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ username: u, password: p }) }),
-          fetch('/api/exams', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ username: u, password: p }) })
-        ])
-        const ttData = await ttRes.json()
-        const exData = await exRes.json()
-        setTimetable(ttData.timetable || [])
-        setNews(ttData.news?.newMessages || [])
-        setExams(exData.exams || [])
+        const res = await fetch('/api/timetable', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username: u, password: p })
+        })
+        const data = await res.json()
+        setTimetable(data.timetable || [])
       } catch {}
       setLoading(false)
     }
@@ -76,153 +73,150 @@ export default function Dashboard() {
     return () => clearInterval(tick)
   }, [])
 
-  const todayLessons = timetable.filter(l => isToday(l.date)).sort((a,b) => a.startTime - b.startTime)
-  const cancelled = todayLessons.filter(isCancelled)
-  const substitutions = todayLessons.filter(l => !isCancelled(l) && isSubstitution(l))
+  const days = [...new Set(timetable.map(l => l.date))].sort()
+  const dayObjects = days.map(d => ({
+    dateInt: d,
+    date: parseUntisDate(d),
+    lessons: timetable.filter(l => l.date === d).sort((a, b) => a.startTime - b.startTime)
+  }))
 
-  const upcomingExams = exams
-    .filter(e => daysUntil(parseUntisDate(e.examDate)) >= 0)
-    .sort((a,b) => a.examDate - b.examDate)
-    .slice(0, 6)
+  const now = new Date()
+  const activeDayInt = selectedDay ?? (
+    dayObjects.find(d => isDateToday(d.date))?.dateInt ??
+    dayObjects.find(d => d.date >= now)?.dateInt ??
+    dayObjects[0]?.dateInt
+  )
+  const activeDay = dayObjects.find(d => d.dateInt === activeDayInt)
+
+  const allChanges = timetable
+    .filter(l => isCancelled(l) || isSubstitution(l) || hasRoomChange(l))
+    .sort((a, b) => a.date - b.date || a.startTime - b.startTime)
 
   const s = {
-    page: { minHeight: '100vh', background: 'var(--dark)', padding: '1.5rem' },
-    header: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '2rem', borderBottom: '1px solid var(--border)', paddingBottom: '1rem' },
-    label: { fontSize: '0.6rem', letterSpacing: '0.25em', color: 'var(--muted)', marginBottom: '0.25rem' },
-    clock: { fontSize: '2rem', fontWeight: 700, color: 'var(--red)', letterSpacing: '0.05em' },
-    grid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '1.25rem' },
+    page: { minHeight: '100vh', background: 'var(--dark)', padding: '1.25rem', fontFamily: "'IBM Plex Mono', monospace" },
+    header: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1.5rem', borderBottom: '1px solid var(--border)', paddingBottom: '1rem' },
+    clock: { fontSize: '2rem', fontWeight: 700, color: 'var(--red)', letterSpacing: '0.05em', lineHeight: 1 },
+    grid: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' },
     card: { background: 'var(--surface)', border: '1px solid var(--border)', padding: '1.25rem' },
     cardTitle: { fontSize: '0.6rem', letterSpacing: '0.25em', color: 'var(--muted)', marginBottom: '1rem', display: 'flex', justifyContent: 'space-between' },
-    row: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.6rem 0', borderBottom: '1px solid var(--border)' },
-    badge: (color) => ({ background: color, color: '#000', fontSize: '0.6rem', fontWeight: 700, padding: '0.2rem 0.5rem', letterSpacing: '0.1em' }),
-    countdown: (days) => ({
-      fontSize: '1.4rem', fontWeight: 700,
-      color: days <= 2 ? 'var(--red)' : days <= 7 ? 'var(--yellow)' : 'var(--text)'
+    row: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.55rem 0', borderBottom: '1px solid var(--border)' },
+    badge: (bg, fg = '#000') => ({ background: bg, color: fg, fontSize: '0.55rem', fontWeight: 700, padding: '0.15rem 0.4rem', letterSpacing: '0.1em', whiteSpace: 'nowrap' }),
+    dayTab: (active) => ({
+      padding: '0.4rem 0.75rem',
+      background: active ? 'var(--red)' : 'var(--surface2)',
+      border: `1px solid ${active ? 'var(--red)' : 'var(--border)'}`,
+      color: active ? '#fff' : 'var(--muted)',
+      fontSize: '0.65rem',
+      cursor: 'pointer',
+      fontFamily: 'IBM Plex Mono, monospace',
+      whiteSpace: 'nowrap'
     }),
-    logout: { background: 'none', border: '1px solid var(--border)', color: 'var(--muted)', padding: '0.4rem 0.75rem', fontFamily: 'IBM Plex Mono, monospace', fontSize: '0.7rem', cursor: 'pointer', letterSpacing: '0.1em' }
+    logout: { background: 'none', border: '1px solid var(--border)', color: 'var(--muted)', padding: '0.35rem 0.6rem', fontFamily: 'IBM Plex Mono, monospace', fontSize: '0.65rem', cursor: 'pointer' }
   }
 
   return (
     <div style={s.page}>
-      {/* Header */}
       <div style={s.header}>
         <div>
-          <div style={s.label}>GYDO // SCHULBOARD</div>
+          <div style={{ fontSize: '0.6rem', letterSpacing: '0.25em', color: 'var(--muted)', marginBottom: '0.2rem' }}>GYDO // SCHULBOARD</div>
           <div style={s.clock}>{clock || '--:--:--'}</div>
-          <div style={{ fontSize: '0.7rem', color: 'var(--muted)', marginTop: '0.25rem' }}>
+          <div style={{ fontSize: '0.65rem', color: 'var(--muted)', marginTop: '0.2rem' }}>
             {new Date().toLocaleDateString('de-DE', { weekday: 'long', day: 'numeric', month: 'long' })}
           </div>
         </div>
         <div style={{ textAlign: 'right' }}>
-          <div style={{ fontSize: '0.7rem', color: 'var(--muted)', marginBottom: '0.5rem' }}>{username}</div>
+          <div style={{ fontSize: '0.65rem', color: 'var(--muted)', marginBottom: '0.4rem' }}>{username}</div>
           <button style={s.logout} onClick={() => { sessionStorage.clear(); router.push('/') }}>LOGOUT</button>
         </div>
       </div>
 
       {loading ? (
-        <div style={{ textAlign: 'center', color: 'var(--muted)', paddingTop: '4rem', letterSpacing: '0.2em' }}>
+        <div style={{ textAlign: 'center', color: 'var(--muted)', paddingTop: '4rem', letterSpacing: '0.2em', fontSize: '0.8rem' }}>
           LADE DATEN...
         </div>
       ) : (
-        <div style={s.grid}>
-
-          {/* Heute anders */}
-          <div style={s.card}>
-            <div style={s.cardTitle}>
-              <span>HEUTE ANDERS</span>
-              <span>{new Date().toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' })}</span>
-            </div>
-            {cancelled.length === 0 && substitutions.length === 0 ? (
-              <div style={{ color: 'var(--muted)', fontSize: '0.8rem' }}>Kein Ausfall / keine Vertretung heute</div>
-            ) : (
-              <>
-                {cancelled.map((l, i) => (
-                  <div key={i} style={s.row}>
-                    <div>
-                      <div style={{ fontSize: '0.75rem', fontWeight: 700 }}>{l.su?.[0]?.name || 'Stunde'}</div>
-                      <div style={{ fontSize: '0.65rem', color: 'var(--muted)' }}>{parseUntisTime(l.startTime)} Uhr</div>
-                    </div>
-                    <span style={s.badge('var(--red)')}>ENTFALL</span>
-                  </div>
-                ))}
-                {substitutions.map((l, i) => (
-                  <div key={i} style={s.row}>
-                    <div>
-                      <div style={{ fontSize: '0.75rem', fontWeight: 700 }}>{l.su?.[0]?.name || 'Stunde'}</div>
-                      <div style={{ fontSize: '0.65rem', color: 'var(--muted)' }}>{parseUntisTime(l.startTime)} · {l.lstext || 'Vertretung'}</div>
-                    </div>
-                    <span style={s.badge('var(--yellow)')}>ÄNDERUNG</span>
-                  </div>
-                ))}
-              </>
-            )}
-          </div>
-
-          {/* Nächste Tests & Arbeiten */}
-          <div style={s.card}>
-            <div style={s.cardTitle}><span>TESTS & ARBEITEN</span><span>nächste 8 Wochen</span></div>
-            {upcomingExams.length === 0 ? (
-              <div style={{ color: 'var(--muted)', fontSize: '0.8rem' }}>Keine eingetragenen Prüfungen</div>
-            ) : upcomingExams.map((e, i) => {
-              const days = daysUntil(parseUntisDate(e.examDate))
-              return (
-                <div key={i} style={s.row}>
-                  <div>
-                    <div style={{ fontSize: '0.75rem', fontWeight: 700 }}>{e.subject || e.name}</div>
-                    <div style={{ fontSize: '0.65rem', color: 'var(--muted)' }}>
-                      {formatDate(parseUntisDate(e.examDate))}
-                      {e.examType && ` · ${e.examType}`}
-                    </div>
-                  </div>
-                  <div style={s.countdown(days)}>
-                    {days === 0 ? 'HEUTE' : days === 1 ? 'MORGEN' : `${days}d`}
-                  </div>
-                </div>
-              )
-            })}
-          </div>
-
-          {/* Stundenplan heute */}
-          <div style={s.card}>
-            <div style={s.cardTitle}><span>STUNDENPLAN HEUTE</span></div>
-            {todayLessons.length === 0 ? (
-              <div style={{ color: 'var(--muted)', fontSize: '0.8rem' }}>Keine Stunden heute</div>
-            ) : todayLessons.map((l, i) => (
-              <div key={i} style={{ ...s.row, opacity: isCancelled(l) ? 0.4 : 1 }}>
-                <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
-                  <div style={{ fontSize: '0.7rem', color: 'var(--muted)', minWidth: '3.5rem' }}>
-                    {parseUntisTime(l.startTime)}
-                  </div>
-                  <div>
-                    <div style={{ fontSize: '0.8rem', fontWeight: 700, textDecoration: isCancelled(l) ? 'line-through' : 'none' }}>
-                      {l.su?.[0]?.name || '—'}
-                    </div>
-                    <div style={{ fontSize: '0.65rem', color: 'var(--muted)' }}>
-                      {l.ro?.[0]?.name && `Raum ${l.ro[0].name}`}
-                      {l.te?.[0]?.name && ` · ${l.te[0].name}`}
-                    </div>
-                  </div>
-                </div>
-                {isCancelled(l) && <span style={s.badge('var(--red)')}>X</span>}
-                {!isCancelled(l) && isSubstitution(l) && <span style={s.badge('var(--yellow)')}>!</span>}
-              </div>
+        <>
+          <div style={{ display: 'flex', gap: '0.4rem', overflowX: 'auto', marginBottom: '1rem', paddingBottom: '0.25rem' }}>
+            {dayObjects.map(d => (
+              <button key={d.dateInt} style={s.dayTab(d.dateInt === activeDayInt)} onClick={() => setSelectedDay(d.dateInt)}>
+                {isDateToday(d.date) ? 'HEUTE' : isDateTomorrow(d.date) ? 'MORGEN' : formatDate(d.date)}
+              </button>
             ))}
           </div>
 
-          {/* News / Ankündigungen */}
-          {news.length > 0 && (
+          <div style={s.grid}>
             <div style={s.card}>
-              <div style={s.cardTitle}><span>NACHRICHTEN</span></div>
-              {news.slice(0, 4).map((n, i) => (
-                <div key={i} style={{ ...s.row, flexDirection: 'column', alignItems: 'flex-start', gap: '0.25rem' }}>
-                  <div style={{ fontSize: '0.75rem', fontWeight: 700 }}>{n.subject}</div>
-                  <div style={{ fontSize: '0.65rem', color: 'var(--muted)' }} dangerouslySetInnerHTML={{ __html: n.text?.slice(0, 120) + '...' }} />
-                </div>
-              ))}
+              <div style={s.cardTitle}>
+                <span>STUNDENPLAN</span>
+                <span>{activeDay ? formatDate(activeDay.date) : '—'}</span>
+              </div>
+              {!activeDay || activeDay.lessons.length === 0 ? (
+                <div style={{ color: 'var(--muted)', fontSize: '0.75rem' }}>Keine Stunden</div>
+              ) : activeDay.lessons.map((l, i) => {
+                const cancelled = isCancelled(l)
+                const sub = !cancelled && isSubstitution(l)
+                const roomChange = hasRoomChange(l)
+                return (
+                  <div key={i} style={{ ...s.row, opacity: cancelled ? 0.45 : 1 }}>
+                    <div style={{ display: 'flex', gap: '0.85rem', alignItems: 'center' }}>
+                      <div style={{ fontSize: '0.65rem', color: 'var(--muted)', minWidth: '3rem' }}>
+                        {parseUntisTime(l.startTime)}
+                      </div>
+                      <div>
+                        <div style={{ fontSize: '0.8rem', fontWeight: 700, textDecoration: cancelled ? 'line-through' : 'none' }}>
+                          {l.su?.[0]?.name || '—'}
+                        </div>
+                        <div style={{ fontSize: '0.6rem', color: 'var(--muted)' }}>
+                          {l.te?.[0]?.name !== '---' ? l.te?.[0]?.name : '?'}
+                          {l.ro?.[0]?.name && l.ro[0].name !== '---' ? ` · ${l.ro[0].name}` : ''}
+                          {l.lstext ? ` · ${l.lstext}` : ''}
+                        </div>
+                      </div>
+                    </div>
+                    <div style={{ display: 'flex', gap: '0.3rem' }}>
+                      {cancelled && <span style={s.badge('var(--red)', '#fff')}>ENTFALL</span>}
+                      {sub && <span style={s.badge('var(--yellow)')}>VERTR.</span>}
+                      {roomChange && !cancelled && <span style={s.badge('var(--border)', 'var(--text)')}>RAUM</span>}
+                    </div>
+                  </div>
+                )
+              })}
             </div>
-          )}
 
-        </div>
+            <div style={s.card}>
+              <div style={s.cardTitle}>
+                <span>ÄNDERUNGEN & AUSFÄLLE</span>
+                <span>2 Wochen</span>
+              </div>
+              {allChanges.length === 0 ? (
+                <div style={{ color: 'var(--muted)', fontSize: '0.75rem' }}>Keine Änderungen 🎉</div>
+              ) : allChanges.map((l, i) => {
+                const date = parseUntisDate(l.date)
+                const cancelled = isCancelled(l)
+                return (
+                  <div key={i} style={s.row}>
+                    <div>
+                      <div style={{ fontSize: '0.75rem', fontWeight: 700 }}>
+                        {l.su?.[0]?.name || '—'}
+                        <span style={{ fontWeight: 400, color: 'var(--muted)', marginLeft: '0.5rem', fontSize: '0.6rem' }}>
+                          {isDateToday(date) ? 'heute' : isDateTomorrow(date) ? 'morgen' : formatDate(date)}
+                          {' '}{parseUntisTime(l.startTime)}
+                        </span>
+                      </div>
+                      {l.lstext && <div style={{ fontSize: '0.6rem', color: 'var(--muted)' }}>{l.lstext}</div>}
+                    </div>
+                    {cancelled
+                      ? <span style={s.badge('var(--red)', '#fff')}>ENTFALL</span>
+                      : hasRoomChange(l)
+                        ? <span style={s.badge('var(--border)', 'var(--text)')}>RAUM</span>
+                        : <span style={s.badge('var(--yellow)')}>VERTR.</span>
+                    }
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        </>
       )}
     </div>
   )
