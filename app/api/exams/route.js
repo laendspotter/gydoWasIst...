@@ -12,9 +12,11 @@ export async function POST(req) {
     in8weeks.setDate(today.getDate() + 56)
 
     const exams = await untis.getExamsForRange(today, in8weeks)
+    const homework = await untis.getHomeWorksFor(today)
+
     await untis.logout()
-    return NextResponse.json({ exams })
+    return NextResponse.json({ exams, homework })
   } catch (e) {
-    return NextResponse.json({ error: e.message }, { status: 500 })
+    return NextResponse.json({ error: e.message, exams: [], homework: [] }, { status: 500 })
   }
 }

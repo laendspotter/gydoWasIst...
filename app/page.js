@@ -10,6 +10,7 @@ export default function LoginPage() {
   const router = useRouter()
 
   async function handleLogin() {
+    if (!username || !password) return
     setLoading(true)
     setError('')
     try {
@@ -24,12 +25,24 @@ export default function LoginPage() {
         sessionStorage.setItem('untis_pass', password)
         router.push('/dashboard')
       } else {
-        setError('Login fehlgeschlagen. Credentials prüfen.')
+        setError('Login fehlgeschlagen — Credentials prüfen.')
       }
     } catch {
       setError('Verbindungsfehler.')
     }
     setLoading(false)
+  }
+
+  const inputStyle = {
+    width: '100%',
+    background: 'var(--surface2)',
+    border: '1px solid var(--border)',
+    color: 'var(--text)',
+    padding: '1rem 1.25rem',
+    fontSize: '1rem',
+    marginBottom: '1rem',
+    outline: 'none',
+    transition: 'border-color 0.15s',
   }
 
   return (
@@ -40,56 +53,37 @@ export default function LoginPage() {
       alignItems: 'center',
       justifyContent: 'center',
       padding: '2rem',
-      background: 'var(--dark)'
+      background: 'var(--dark)',
     }}>
       <div style={{ textAlign: 'center', marginBottom: '3rem' }}>
-        <div style={{
-          fontSize: '0.7rem',
-          letterSpacing: '0.3em',
-          color: 'var(--red)',
-          marginBottom: '0.5rem'
-        }}>GYDO // SCHULBOARD</div>
-        <div style={{
-          fontSize: '2.5rem',
-          fontWeight: 700,
-          letterSpacing: '-0.02em',
-          lineHeight: 1
-        }}>
-          Abfahrt<br/>
-          <span style={{ color: 'var(--red)' }}>Wissen.</span>
+        <div style={{ fontSize: '0.75rem', letterSpacing: '0.3em', color: 'var(--red)', marginBottom: '0.75rem' }}>
+          GYDO // SCHULBOARD
+        </div>
+        <div style={{ fontSize: '3.5rem', fontWeight: 700, lineHeight: 1.1, letterSpacing: '-0.02em' }}>
+          Gydo<span style={{ color: 'var(--red)' }}>Helper</span>
+        </div>
+        <div style={{ fontSize: '0.9rem', color: 'var(--muted)', marginTop: '0.75rem' }}>
+          Stundenplan · Hausaufgaben · Lehrer · Tracker
         </div>
       </div>
 
       <div style={{
         width: '100%',
-        maxWidth: '380px',
+        maxWidth: '420px',
         border: '1px solid var(--border)',
         background: 'var(--surface)',
-        padding: '2rem'
+        padding: '2.5rem',
       }}>
-        <div style={{
-          fontSize: '0.65rem',
-          letterSpacing: '0.2em',
-          color: 'var(--muted)',
-          marginBottom: '1.5rem'
-        }}>WEBUNTIS LOGIN</div>
+        <div style={{ fontSize: '0.7rem', letterSpacing: '0.2em', color: 'var(--muted)', marginBottom: '2rem' }}>
+          WEBUNTIS LOGIN
+        </div>
 
         <input
           type="text"
           placeholder="Benutzername"
           value={username}
           onChange={e => setUsername(e.target.value)}
-          style={{
-            width: '100%',
-            background: 'var(--surface2)',
-            border: '1px solid var(--border)',
-            color: 'var(--text)',
-            padding: '0.75rem 1rem',
-            fontFamily: 'IBM Plex Mono, monospace',
-            fontSize: '0.9rem',
-            marginBottom: '0.75rem',
-            outline: 'none'
-          }}
+          style={inputStyle}
         />
         <input
           type="password"
@@ -97,26 +91,16 @@ export default function LoginPage() {
           value={password}
           onChange={e => setPassword(e.target.value)}
           onKeyDown={e => e.key === 'Enter' && handleLogin()}
-          style={{
-            width: '100%',
-            background: 'var(--surface2)',
-            border: '1px solid var(--border)',
-            color: 'var(--text)',
-            padding: '0.75rem 1rem',
-            fontFamily: 'IBM Plex Mono, monospace',
-            fontSize: '0.9rem',
-            marginBottom: '1.25rem',
-            outline: 'none'
-          }}
+          style={inputStyle}
         />
 
         {error && (
           <div style={{
             color: 'var(--red)',
-            fontSize: '0.75rem',
+            fontSize: '0.85rem',
             marginBottom: '1rem',
             borderLeft: '2px solid var(--red)',
-            paddingLeft: '0.75rem'
+            paddingLeft: '0.75rem',
           }}>{error}</div>
         )}
 
@@ -128,25 +112,20 @@ export default function LoginPage() {
             background: loading ? 'var(--border)' : 'var(--red)',
             color: '#fff',
             border: 'none',
-            padding: '0.85rem',
-            fontFamily: 'IBM Plex Mono, monospace',
-            fontSize: '0.85rem',
+            padding: '1rem',
+            fontSize: '0.9rem',
             fontWeight: 700,
             letterSpacing: '0.1em',
-            cursor: loading ? 'not-allowed' : 'pointer'
+            cursor: loading ? 'not-allowed' : 'pointer',
+            transition: 'background 0.15s',
           }}
         >
           {loading ? 'VERBINDE...' : 'EINLOGGEN →'}
         </button>
       </div>
 
-      <div style={{
-        marginTop: '1.5rem',
-        fontSize: '0.65rem',
-        color: 'var(--muted)',
-        letterSpacing: '0.1em'
-      }}>
-        gydo.webuntis.net
+      <div style={{ marginTop: '2rem', fontSize: '0.7rem', color: 'var(--muted2)', letterSpacing: '0.1em' }}>
+        gydo.webuntis.com
       </div>
     </div>
   )

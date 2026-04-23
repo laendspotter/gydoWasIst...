@@ -1,8 +1,8 @@
 import './globals.css'
 
 export const metadata = {
-  title: 'Schulboard',
-  description: 'Dein Schul-Dashboard',
+  title: 'GydoHelper',
+  description: 'Dein Schulboard für das Gymnasium Dornstetten',
 }
 
 export default function RootLayout({ children }) {
