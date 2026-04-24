@@ -3,7 +3,7 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import dynamic from 'next/dynamic'
 
-const SeasonalBackground = dynamic(() => import('../../components/SeasonalBackground'), { ssr: false })
+const SeasonalBackground = dynamic(() => import('../components/SeasonalBackground'), { ssr: false })
 
 export default function LoginPage() {
   const [username, setUsername] = useState('')
