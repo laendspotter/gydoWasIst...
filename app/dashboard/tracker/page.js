@@ -2,123 +2,156 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import DashNav from '../../../components/DashNav'
+import { glass, glassSubtle, pageWrap } from '../../../lib/styles'
 
-// gydo: klasse 5-12, 8 schuljahre
-// ca. 30 schulwochen/jahr, 5 tage/woche, 6 stunden/tag à 45min
-const SCHULJAHR_START = new Date('2018-09-01') // approximiert, anpassbar
 const STUNDEN_PRO_TAG = 6
-const TAGE_PRO_WOCHE = 5
-const WOCHEN_PRO_JAHR = 34
-const MINUTEN_PRO_STUNDE = 45
-const SCHULJAHRE = 9 // klasse 5-13 gymnasium bw
+const TAGE_PRO_WOCHE  = 5
+const MINUTEN_PRO_STD = 45
 
 export default function Tracker() {
   const router = useRouter()
   const [clock, setClock] = useState('')
   const [username, setUsername] = useState('')
   const [now, setNow] = useState(new Date())
+  const [schoolYearStart, setSchoolYearStart] = useState(null)
+  const [schoolYearEnd, setSchoolYearEnd] = useState(null)
+  // fallback: manuell wählbar
   const [startYear, setStartYear] = useState(2018)
+  const [useUntis, setUseUntis] = useState(false)
 
   useEffect(() => {
     const u = sessionStorage.getItem('untis_user')
+    const p = sessionStorage.getItem('untis_pass')
+    const otp = sessionStorage.getItem('untis_otp')
     if (!u) { router.push('/'); return }
     setUsername(u)
 
-    const tick = setInterval(() => {
-      setClock(new Date().toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit', second: '2-digit' }))
-      setNow(new Date())
-    }, 1000)
+    fetch('/api/timetable', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username: u, password: p, otp })
+    }).then(r => r.json()).then(d => {
+      if (d.schoolYearStart && d.schoolYearEnd) {
+        setSchoolYearStart(new Date(d.schoolYearStart))
+        setSchoolYearEnd(new Date(d.schoolYearEnd))
+        setUseUntis(true)
+      }
+    }).catch(() => {})
+
+    const tick = setInterval(() => { setClock(new Date().toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit', second: '2-digit' })); setNow(new Date()) }, 1000)
     return () => clearInterval(tick)
   }, [])
 
-  const schulbeginn = new Date(`${startYear}-09-01`)
-  const schulende = new Date(`${startYear + SCHULJAHRE}-07-31`)
+  // schuljahr berechnen
+  const schulbeginnGymnasium = new Date(`${startYear}-09-01`) // klasse 5 start
+  const schulendeGymnasium   = new Date(`${startYear + 9}-07-31`)  // nach klasse 13
 
-  // vergangene schulzeit in ms (nur werkstage approx)
-  const msTotal = now - schulbeginn
-  const tageTotal = Math.max(0, Math.floor(msTotal / (1000 * 60 * 60 * 24)))
-  const wochenTotal = tageTotal / 7
-  const schulwochenTotal = wochenTotal * (TAGE_PRO_WOCHE / 7) * 0.85 // ~85% echte schulwochen (abzgl. ferien)
-  const stundenTotal = Math.floor(schulwochenTotal * TAGE_PRO_WOCHE * STUNDEN_PRO_TAG)
-  const minutenTotal = stundenTotal * MINUTEN_PRO_STUNDE
-  const lebenszeitProzent = ((minutenTotal / 60) / (24 * 365 * 80) * 100)
+  // wenn untis daten hat: aktuelles schuljahr
+  const currentYearStart = useUntis ? schoolYearStart : schulbeginnGymnasium
+  const currentYearEnd   = useUntis ? schoolYearEnd   : schulendeGymnasium
 
-  // verbleibende schulzeit
-  const msLeft = schulende - now
+  // vergangene schulzeit (gesamtes gymnasium, ca seit klasse 5)
+  const msVerstrichen = now - schulbeginnGymnasium
+  const tageVerstrichen = Math.max(0, Math.floor(msVerstrichen / (1000 * 60 * 60 * 24)))
+  const wochenVerstrichenRaw = tageVerstrichen / 7
+  const schulwochenBisher = wochenVerstrichenRaw * (TAGE_PRO_WOCHE / 7) * 0.82 // ~82% echte schulwochen
+  const stundenBisher = Math.floor(schulwochenBisher * TAGE_PRO_WOCHE * STUNDEN_PRO_TAG)
+  const minutenBisher = stundenBisher * MINUTEN_PRO_STD
+
+  // verbleibend
+  const msLeft = schulendeGymnasium - now
   const tageLeft = Math.max(0, Math.floor(msLeft / (1000 * 60 * 60 * 24)))
-  const wochenLeft = Math.floor(tageLeft / 7)
-  const stundenLeft = Math.floor(wochenLeft * 0.85 * TAGE_PRO_WOCHE * STUNDEN_PRO_TAG)
+  const schulwochenLeft = Math.floor(tageLeft / 7) * 0.82
+  const stundenLeft = Math.floor(schulwochenLeft * TAGE_PRO_WOCHE * STUNDEN_PRO_TAG)
 
-  // "heute" noch
-  const heuteStd = STUNDEN_PRO_TAG
-  const heuteMins = heuteStd * MINUTEN_PRO_STUNDE
+  // aktuelles schuljahr (aus untis oder manuell)
+  const msCurrentYear = currentYearEnd ? currentYearEnd - currentYearStart : 0
+  const msDoneCurrentYear = currentYearStart ? now - currentYearStart : 0
+  const currentYearPct = Math.min(100, Math.max(0, (msDoneCurrentYear / msCurrentYear) * 100))
 
-  const fmt = (n) => n.toLocaleString('de-DE')
+  // gesamt prozent
+  const gesamtPct = Math.min(100, Math.round((stundenBisher / (stundenBisher + stundenLeft)) * 100))
 
-  const statCard = (label, value, sub, color = 'var(--text)') => (
-    <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', padding: '2rem', textAlign: 'center' }}>
-      <div style={{ fontSize: '0.65rem', color: 'var(--muted)', letterSpacing: '0.2em', marginBottom: '0.75rem' }}>{label}</div>
-      <div style={{ fontSize: '2.5rem', fontWeight: 700, color, lineHeight: 1, fontVariantNumeric: 'tabular-nums' }}>{value}</div>
-      {sub && <div style={{ fontSize: '0.8rem', color: 'var(--muted)', marginTop: '0.5rem' }}>{sub}</div>}
+  const fmt = n => Math.round(n).toLocaleString('de-DE')
+
+  const statCard = (label, value, sub, color = '#1a0e02') => (
+    <div style={{ ...glass, padding: '1.75rem', textAlign: 'center' }}>
+      <div style={{ fontSize: '0.6rem', color: 'rgba(80,50,15,0.5)', letterSpacing: '0.18em', marginBottom: '0.65rem', fontFamily: 'IBM Plex Mono, monospace' }}>{label}</div>
+      <div style={{ fontSize: '2.2rem', fontWeight: 700, color, lineHeight: 1, fontVariantNumeric: 'tabular-nums', fontFamily: 'IBM Plex Mono, monospace' }}>{value}</div>
+      {sub && <div style={{ fontSize: '0.72rem', color: 'rgba(80,50,15,0.5)', marginTop: '0.45rem', fontFamily: 'IBM Plex Mono, monospace' }}>{sub}</div>}
+    </div>
+  )
+
+  const ProgressBar = ({ pct, color = '#c05a00', label, labelRight }) => (
+    <div style={{ marginBottom: '0.35rem' }}>
+      {(label || labelRight) && (
+        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.62rem', color: 'rgba(80,50,15,0.5)', marginBottom: '0.45rem', fontFamily: 'IBM Plex Mono, monospace' }}>
+          <span>{label}</span><span style={{ color }}>{Math.round(pct)}% DURCH</span>
+        </div>
+      )}
+      <div style={{ height: '10px', background: 'rgba(200,155,80,0.2)', borderRadius: '999px', overflow: 'hidden', border: '1px solid rgba(200,155,80,0.25)' }}>
+        <div style={{ height: '100%', width: `${pct}%`, background: `linear-gradient(90deg, ${color}, ${color}cc)`, borderRadius: '999px', transition: 'width 0.8s ease' }} />
+      </div>
     </div>
   )
 
   return (
-    <div style={{ minHeight: '100vh', background: 'var(--dark)' }}>
+    <div style={{ minHeight: '100vh', position: 'relative' }}>
       <DashNav username={username} clock={clock} />
-      <div style={{ maxWidth: '900px', margin: '0 auto', padding: '2rem' }}>
-        <div style={{ marginBottom: '2rem' }}>
-          <div style={{ fontSize: '2rem', fontWeight: 700, marginBottom: '0.25rem' }}>Schulstunden-Tracker</div>
-          <div style={{ fontSize: '0.85rem', color: 'var(--muted)' }}>wie viel lebenszeit du schon in der schule verbracht hast. deprimierend, aber wahr.</div>
+      <div style={pageWrap}>
+        <div style={{ marginBottom: '0.4rem', fontSize: '1.9rem', fontWeight: 700, color: '#1a0e02', fontFamily: 'IBM Plex Mono, monospace' }}>Schulstunden-Tracker</div>
+        <div style={{ fontSize: '0.78rem', color: 'rgba(60,35,10,0.5)', marginBottom: '1.75rem', fontFamily: 'IBM Plex Mono, monospace' }}>
+          wie viel lebenszeit du schon in der schule verbracht hast. deprimierend, aber wahr.
+          {useUntis && <span style={{ color: '#16a34a', marginLeft: '0.5rem' }}>✓ schuljahres-daten aus webuntis</span>}
         </div>
 
-        {/* schuljahr konfigurieren */}
-        <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', padding: '1.25rem', marginBottom: '2rem', display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
-          <span style={{ fontSize: '0.75rem', color: 'var(--muted)', letterSpacing: '0.1em' }}>EINSCHULUNG:</span>
-          {[2016, 2017, 2018, 2019, 2020].map(y => (
+        {/* einschulung wählen */}
+        <div style={{ ...glassSubtle, padding: '1rem 1.25rem', marginBottom: '1.75rem', display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
+          <span style={{ fontSize: '0.68rem', color: 'rgba(80,50,15,0.6)', letterSpacing: '0.1em', fontFamily: 'IBM Plex Mono, monospace' }}>EINSCHULUNG KLASSE 5:</span>
+          {[2016, 2017, 2018, 2019, 2020, 2021].map(y => (
             <button key={y} onClick={() => setStartYear(y)} style={{
-              padding: '0.4rem 0.8rem',
-              background: startYear === y ? 'var(--red)' : 'var(--surface2)',
-              border: `1px solid ${startYear === y ? 'var(--red)' : 'var(--border)'}`,
-              color: startYear === y ? '#fff' : 'var(--muted)',
-              fontSize: '0.75rem', cursor: 'pointer',
+              padding: '0.35rem 0.75rem',
+              background: startYear === y ? 'linear-gradient(135deg,#b84d00,#e07828)' : 'rgba(255,245,215,0.55)',
+              border: `1px solid ${startYear === y ? 'transparent' : 'rgba(190,140,60,0.3)'}`,
+              color: startYear === y ? '#fff' : 'rgba(80,50,15,0.65)',
+              fontSize: '0.72rem', cursor: 'pointer', borderRadius: '6px', fontFamily: 'IBM Plex Mono, monospace',
             }}>{y}</button>
           ))}
         </div>
 
         {/* main stats */}
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
-          {statCard('SCHULSTUNDEN BISHER', fmt(stundenTotal), `= ${fmt(minutenTotal)} Minuten`, 'var(--red)')}
-          {statCard('NOCH VOR DIR', fmt(stundenLeft), `≈ ${wochenLeft} Schulwochen`, 'var(--yellow)')}
+          {statCard('SCHULSTUNDEN BISHER', fmt(stundenBisher), `= ${fmt(minutenBisher)} Minuten`, '#c05a00')}
+          {statCard('NOCH VOR DIR', fmt(stundenLeft), `≈ ${Math.floor(schulwochenLeft)} Schulwochen`, '#ca8a04')}
         </div>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '1rem', marginBottom: '2rem' }}>
-          {statCard('TAGE IN DER SCHULE', fmt(Math.floor(schulwochenTotal * TAGE_PRO_WOCHE)), undefined, 'var(--text)')}
-          {statCard('LEBENSZEIT VERBRAUCHT', `${lebenszeitProzent.toFixed(3)}%`, 'von 80 Jahren Lebenserwartung', 'var(--muted)')}
-          {statCard('HEUTE NOCH', `${heuteStd}h`, `${heuteMins} Minuten`, 'var(--green)')}
-        </div>
-
-        {/* progress bar */}
-        <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', padding: '1.75rem' }}>
-          <div style={{ fontSize: '0.65rem', color: 'var(--muted)', letterSpacing: '0.2em', marginBottom: '1.25rem', display: 'flex', justifyContent: 'space-between' }}>
-            <span>SCHULZEIT GESAMT</span>
-            <span>{Math.min(100, Math.round((stundenTotal / (stundenTotal + stundenLeft)) * 100))}% DURCH</span>
-          </div>
-          <div style={{ height: '12px', background: 'var(--surface2)', border: '1px solid var(--border)', marginBottom: '0.75rem' }}>
-            <div style={{
-              height: '100%',
-              width: `${Math.min(100, (stundenTotal / (stundenTotal + stundenLeft)) * 100)}%`,
-              background: 'var(--red)',
-              transition: 'width 1s',
-            }} />
-          </div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', color: 'var(--muted)' }}>
-            <span>Klasse 5 ({startYear})</span>
-            <span>Abitur ({startYear + SCHULJAHRE})</span>
-          </div>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '1rem', marginBottom: '1.5rem' }}>
+          {statCard('SCHULTAGE BISHER', fmt(Math.floor(schulwochenBisher * TAGE_PRO_WOCHE)))}
+          {statCard('HEUTE NOCH', `${STUNDEN_PRO_TAG}h`, `${STUNDEN_PRO_TAG * MINUTEN_PRO_STD} Minuten`, '#16a34a')}
+          {statCard('KLASSE', startYear ? `${Math.min(13, Math.max(5, Math.floor((now - new Date(`${startYear}-09-01`)) / (1000 * 60 * 60 * 24 * 365)) + 5))}` : '?', `Gymnasium BW · Abitur ${startYear + 9}`)}
         </div>
 
-        <div style={{ marginTop: '1.5rem', fontSize: '0.75rem', color: 'var(--muted2)', textAlign: 'center', letterSpacing: '0.05em' }}>
-          Berechnung basiert auf ~{STUNDEN_PRO_TAG} Stunden/Tag · {TAGE_PRO_WOCHE} Tage/Woche · {WOCHEN_PRO_JAHR} Schulwochen/Jahr · Gymnasium BW
+        {/* progress bars */}
+        <div style={{ ...glass, padding: '1.75rem' }}>
+          <div style={{ marginBottom: '1.5rem' }}>
+            <ProgressBar pct={gesamtPct} color="#c05a00" label="GYMNASIUM GESAMT (KL. 5 → ABITUR)" labelRight />
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.62rem', color: 'rgba(80,50,15,0.4)', marginTop: '0.35rem', fontFamily: 'IBM Plex Mono, monospace' }}>
+              <span>Klasse 5 ({startYear})</span><span>Abitur ({startYear + 9})</span>
+            </div>
+          </div>
+
+          {useUntis && currentYearStart && currentYearEnd && (
+            <div>
+              <ProgressBar pct={currentYearPct} color="#16a34a" label="AKTUELLES SCHULJAHR (aus WebUntis)" labelRight />
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.62rem', color: 'rgba(80,50,15,0.4)', marginTop: '0.35rem', fontFamily: 'IBM Plex Mono, monospace' }}>
+                <span>{currentYearStart.toLocaleDateString('de-DE')}</span>
+                <span>{currentYearEnd.toLocaleDateString('de-DE')}</span>
+              </div>
+            </div>
+          )}
+        </div>
+
+        <div style={{ marginTop: '1.25rem', fontSize: '0.68rem', color: 'rgba(80,50,15,0.4)', textAlign: 'center', fontFamily: 'IBM Plex Mono, monospace' }}>
+          ~{STUNDEN_PRO_TAG} Std/Tag · {TAGE_PRO_WOCHE} Tage/Woche · ~82% echte Schulwochen (ohne Ferien) · Gymnasium BW
         </div>
       </div>
     </div>
