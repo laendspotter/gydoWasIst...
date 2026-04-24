@@ -2,7 +2,11 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import DashNav from '../../../components/DashNav'
-import { glass, glassSubtle, btnPrimary, pageWrap, pageTitle, pageSub } from '../../../lib/styles'
+const glass = { background: 'rgba(255,250,235,0.78)', border: '1px solid rgba(220,175,100,0.45)', borderRadius: '14px', backdropFilter: 'blur(18px)', WebkitBackdropFilter: 'blur(18px)', boxShadow: '0 4px 24px rgba(120,60,10,0.1)' }
+const glassSubtle = { background: 'rgba(255,248,225,0.62)', border: '1px solid rgba(200,155,80,0.3)', borderRadius: '10px', backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)' }
+const btnPrimary = { background: 'linear-gradient(135deg, #b84d00, #e07828)', color: '#fff', border: 'none', padding: '0.6rem 1.25rem', fontSize: '0.78rem', fontWeight: 700, letterSpacing: '0.09em', cursor: 'pointer', borderRadius: '8px', boxShadow: '0 3px 12px rgba(160,80,0,0.28)', fontFamily: 'IBM Plex Mono, monospace' }
+const pageWrap = { position: 'relative', zIndex: 2, maxWidth: '1200px', margin: '0 auto', padding: '2rem' }
+const pageTitle = { fontSize: '1.9rem', fontWeight: 700, color: '#1a0e02', fontFamily: 'IBM Plex Mono, monospace' }
 
 const ADMIN_USERS = ['joshua.bohat', 'benjamin.kuebler']
 

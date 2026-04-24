@@ -105,21 +105,21 @@ export default function LoginPage() {
             WEBUNTIS LOGIN
           </div>
 
+          <form onSubmit={e => { e.preventDefault(); handleLogin() }} style={{ margin: 0 }}>
           <input type="text" placeholder="Benutzername" value={username}
             onChange={e => setUsername(e.target.value)}
-            onKeyDown={e => !needs2FA && e.key === 'Enter' && !password && null}
+            autoComplete="username"
             style={inp} />
           <input type="password" placeholder="Passwort" value={password}
             onChange={e => setPassword(e.target.value)}
-            onKeyDown={e => !needs2FA && e.key === 'Enter' && handleLogin()}
+            autoComplete="current-password"
             style={inp} />
 
           {needs2FA && (
             <input type="text" placeholder="2FA-Code (6-stellig)" value={otp}
               onChange={e => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
-              onKeyDown={e => e.key === 'Enter' && handleLogin()}
               style={{ ...inp, borderColor: '#c05a00' }}
-              autoFocus maxLength={6} />
+              autoFocus maxLength={6} autoComplete="one-time-code" />
           )}
 
           {error && (
@@ -131,7 +131,7 @@ export default function LoginPage() {
             }}>{error}</div>
           )}
 
-          <button onClick={handleLogin}
+          <button type="submit"
             disabled={loading || (needs2FA && otp.length < 6)}
             style={{
               width: '100%',
@@ -144,6 +144,7 @@ export default function LoginPage() {
             }}>
             {loading ? 'VERBINDE...' : needs2FA ? '2FA BESTÄTIGEN →' : 'EINLOGGEN →'}
           </button>
+          </form>
         </div>
 
         <div style={{

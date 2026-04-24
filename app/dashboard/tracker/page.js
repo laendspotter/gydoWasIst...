@@ -2,7 +2,10 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import DashNav from '../../../components/DashNav'
-import { glass, glassSubtle, pageWrap } from '../../../lib/styles'
+const glass = { background: 'rgba(255,250,235,0.78)', border: '1px solid rgba(220,175,100,0.45)', borderRadius: '14px', backdropFilter: 'blur(18px)', WebkitBackdropFilter: 'blur(18px)', boxShadow: '0 4px 24px rgba(120,60,10,0.1)' }
+const glassSubtle = { background: 'rgba(255,248,225,0.62)', border: '1px solid rgba(200,155,80,0.3)', borderRadius: '10px', backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)' }
+const pageWrap = { position: 'relative', zIndex: 2, maxWidth: '1100px', margin: '0 auto', padding: '2rem' }
+const mono = { fontFamily: 'IBM Plex Mono, monospace' }
 
 const STUNDEN_PRO_TAG = 6
 const TAGE_PRO_WOCHE  = 5
