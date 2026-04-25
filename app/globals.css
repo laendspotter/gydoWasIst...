@@ -1,42 +1,41 @@
 @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;700&display=swap');
 
 :root {
-  /* warm/cozy palette */
-  --accent:    #c05a00;
-  --accent2:   #e07828;
-  --accent-dim: rgba(192,90,0,0.12);
+  /* ── DARK MODE (default) ── */
+  --accent:      #ff6b35;
+  --accent2:     #ff9a5c;
+  --accent-dim:  rgba(255,107,53,0.15);
 
-  /* glass surfaces — semi-transparent warm white */
-  --dark:      rgba(255,248,232,0.82);
-  --surface:   rgba(255,252,240,0.72);
-  --surface2:  rgba(255,248,228,0.6);
-  --surface3:  rgba(255,240,210,0.55);
+  /* dark surfaces */
+  --dark:        #0d0d0f;
+  --surface:     rgba(255,255,255,0.05);
+  --surface2:    rgba(255,255,255,0.08);
+  --surface3:    rgba(255,255,255,0.12);
 
-  --border:    rgba(200,150,80,0.28);
-  --border2:   rgba(200,150,80,0.42);
+  --border:      rgba(255,255,255,0.1);
+  --border2:     rgba(255,255,255,0.18);
 
-  --text:      #2d1a04;
-  --muted:     rgba(80,50,15,0.55);
-  --muted2:    rgba(80,50,15,0.35);
+  --text:        #f0ece4;
+  --muted:       rgba(240,236,228,0.5);
+  --muted2:      rgba(240,236,228,0.3);
 
-  --red:       #c0392b;
-  --yellow:    #ca8a04;
-  --green:     #16a34a;
-  --blue:      #2563eb;
-  --purple:    #7c3aed;
+  --red:         #ef4444;
+  --yellow:      #f59e0b;
+  --green:       #22c55e;
+  --blue:        #60a5fa;
+  --purple:      #a78bfa;
 
-  /* glass blur for panels */
-  --glass: rgba(255,250,235,0.75);
-  --glass-border: rgba(255,220,150,0.55);
-  --shadow: 0 4px 30px rgba(120,60,10,0.14);
+  /* glass panels — dark frosted */
+  --glass:        rgba(20,18,24,0.72);
+  --glass-border: rgba(255,120,60,0.25);
+  --shadow:       0 4px 30px rgba(0,0,0,0.45);
 }
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
 html { font-size: 16px; }
 
 body {
-  /* fallback bg when seasonal hasn't loaded */
-  background: #c8dff0;
+  background: #0d0d0f;
   color: var(--text);
   font-family: 'IBM Plex Mono', monospace;
   min-height: 100vh;
