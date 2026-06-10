@@ -13,7 +13,6 @@ const TABS = [
   { path: '/dashboard/lehrer',       label: 'LEHRER & RÄUME' },
   { path: '/dashboard/karte',        label: 'KARTE' },
   { path: '/dashboard/zitate',       label: 'TOP ZITATE' },
-  { path: '/dashboard/tracker',      label: 'TRACKER' },
 ]
 
 const ADMIN_USERS = ['joshua.bohat', 'benjamin.kuebler']
