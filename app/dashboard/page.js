@@ -3,21 +3,15 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import DashNav from '../../components/DashNav'
 import { parseUntisDate, parseUntisTime, isCancelled, isSubstitution, isToday, dayLabel } from '../../lib/untis'
+import { glass } from '../../lib/styles'
 
-const G = {
-  background: 'rgba(255,250,235,0.78)',
-  border: '1px solid rgba(220,175,100,0.45)',
-  borderRadius: '14px',
-  backdropFilter: 'blur(18px)',
-  WebkitBackdropFilter: 'blur(18px)',
-  boxShadow: '0 4px 24px rgba(120,60,10,0.1)',
-}
 const mono = { fontFamily: 'IBM Plex Mono, monospace' }
 
 export default function Dashboard() {
   const router = useRouter()
   const [timetable, setTimetable] = useState([])
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(null)
   const [clock, setClock] = useState('')
   const [username, setUsername] = useState('')
   const [selectedDay, setSelectedDay] = useState(null)
@@ -34,9 +28,13 @@ export default function Dashboard() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ username: u, password: p, otp })
     }).then(r => r.json()).then(d => {
+      if (d.error) setError(d.error)
       setTimetable(d.timetable || [])
       setLoading(false)
-    }).catch(() => setLoading(false))
+    }).catch(e => {
+      setError(e.message)
+      setLoading(false)
+    })
 
     const tick = setInterval(() => setClock(new Date().toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit', second: '2-digit' })), 1000)
     return () => clearInterval(tick)
@@ -73,14 +71,22 @@ export default function Dashboard() {
       <div style={{ position: 'relative', zIndex: 2, maxWidth: '1100px', margin: '0 auto', padding: '2rem' }}>
 
         <div style={{ marginBottom: '1.75rem' }}>
-          <div style={{ fontSize: '0.62rem', color: 'rgba(80,50,15,0.5)', letterSpacing: '0.15em', marginBottom: '0.2rem', ...mono }}>
+          <div style={{ fontSize: '0.62rem', color: 'var(--muted2)', letterSpacing: '0.15em', marginBottom: '0.2rem', ...mono }}>
             {new Date().toLocaleDateString('de-DE', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
           </div>
-          <div style={{ fontSize: '1.9rem', fontWeight: 700, color: '#1a0e02', ...mono }}>Übersicht</div>
+          <div style={{ fontSize: '1.9rem', fontWeight: 700, color: 'var(--text)', ...mono }}>Übersicht</div>
         </div>
 
         {loading ? (
-          <div style={{ color: 'rgba(80,50,15,0.5)', textAlign: 'center', padding: '4rem', animation: 'pulse 1.5s infinite', ...mono }}>LADE DATEN...</div>
+          <div style={{ color: 'var(--muted)', textAlign: 'center', padding: '4rem', animation: 'pulse 1.5s infinite', ...mono }}>LADE DATEN...</div>
+        ) : error ? (
+          <div style={{ ...glass, padding: '1.5rem', borderLeft: '3px solid var(--red)', marginBottom: '1.5rem' }}>
+            <div style={{ fontSize: '0.65rem', color: 'var(--red)', letterSpacing: '0.12em', marginBottom: '0.5rem', ...mono }}>UNTIS FEHLER</div>
+            <div style={{ fontSize: '0.9rem', color: 'var(--text)', ...mono }}>{error}</div>
+            <div style={{ fontSize: '0.75rem', color: 'var(--muted)', marginTop: '0.5rem', ...mono }}>
+              Bitte neu einloggen oder später nochmal versuchen.
+            </div>
+          </div>
         ) : (
           <>
             {/* day tabs */}
@@ -88,9 +94,9 @@ export default function Dashboard() {
               {dayObjects.map(d => (
                 <button key={d.dateInt} onClick={() => setSelectedDay(d.dateInt)} style={{
                   padding: '0.45rem 0.9rem',
-                  background: d.dateInt === activeDayInt ? 'linear-gradient(135deg,#b84d00,#e07828)' : 'rgba(255,248,225,0.65)',
-                  border: `1px solid ${d.dateInt === activeDayInt ? 'transparent' : 'rgba(200,155,80,0.3)'}`,
-                  color: d.dateInt === activeDayInt ? '#fff' : 'rgba(70,42,12,0.65)',
+                  background: d.dateInt === activeDayInt ? 'linear-gradient(135deg,#c05200,#e07828)' : 'rgba(255,255,255,0.05)',
+                  border: `1px solid ${d.dateInt === activeDayInt ? 'transparent' : 'rgba(255,255,255,0.1)'}`,
+                  color: d.dateInt === activeDayInt ? '#fff' : 'var(--muted)',
                   fontSize: '0.68rem', cursor: 'pointer', whiteSpace: 'nowrap',
                   letterSpacing: '0.08em', borderRadius: '7px', ...mono,
                 }}>{dayLabel(d.date)}</button>
@@ -99,39 +105,39 @@ export default function Dashboard() {
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.25rem' }}>
               {/* stundenplan */}
-              <div style={{ ...G, padding: '1.5rem' }}>
-                <div style={{ fontSize: '0.6rem', letterSpacing: '0.2em', color: 'rgba(80,50,15,0.5)', marginBottom: '1.1rem', display: 'flex', justifyContent: 'space-between', ...mono }}>
+              <div style={{ ...glass, padding: '1.5rem' }}>
+                <div style={{ fontSize: '0.6rem', letterSpacing: '0.2em', color: 'var(--muted)', marginBottom: '1.1rem', display: 'flex', justifyContent: 'space-between', ...mono }}>
                   <span>STUNDENPLAN</span>
-                  <span style={{ color: '#c05a00' }}>{activeDay ? dayLabel(activeDay.date) : '—'}</span>
+                  <span style={{ color: 'var(--accent)' }}>{activeDay ? dayLabel(activeDay.date) : '—'}</span>
                 </div>
                 {!activeDay || activeDay.lessons.length === 0 ? (
-                  <div style={{ color: 'rgba(80,50,15,0.45)', fontSize: '0.85rem', ...mono }}>Keine Stunden</div>
+                  <div style={{ color: 'var(--muted)', fontSize: '0.85rem', ...mono }}>Keine Stunden</div>
                 ) : activeDay.lessons.map((l, i) => {
                   const cancelled = isCancelled(l)
                   const sub = !cancelled && isSubstitution(l)
                   return (
                     <div key={i} style={{
                       display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-                      padding: '0.6rem 0', borderBottom: '1px solid rgba(200,155,80,0.18)',
+                      padding: '0.6rem 0', borderBottom: '1px solid rgba(255,255,255,0.06)',
                       opacity: cancelled ? 0.45 : 1,
                     }}>
                       <div style={{ display: 'flex', gap: '0.9rem', alignItems: 'center' }}>
-                        <div style={{ fontSize: '0.78rem', color: '#c05a00', minWidth: '2.8rem', fontWeight: 600, ...mono }}>
+                        <div style={{ fontSize: '0.78rem', color: 'var(--accent)', minWidth: '2.8rem', fontWeight: 600, ...mono }}>
                           {parseUntisTime(l.startTime)}
                         </div>
                         <div>
-                          <div style={{ fontSize: '0.9rem', fontWeight: 700, textDecoration: cancelled ? 'line-through' : 'none', color: '#1a0e02', ...mono }}>
+                          <div style={{ fontSize: '0.9rem', fontWeight: 700, textDecoration: cancelled ? 'line-through' : 'none', color: 'var(--text)', ...mono }}>
                             {l.su?.[0]?.name || '—'}
                           </div>
-                          <div style={{ fontSize: '0.68rem', color: 'rgba(70,42,12,0.55)', marginTop: '0.1rem', ...mono }}>
+                          <div style={{ fontSize: '0.68rem', color: 'var(--muted)', marginTop: '0.1rem', ...mono }}>
                             {l.te?.[0]?.name && l.te[0].name !== '---' ? l.te[0].name : '?'}
                             {l.ro?.[0]?.name && l.ro[0].name !== '---' ? ` · ${l.ro[0].name}` : ''}
                           </div>
                         </div>
                       </div>
                       <div style={{ display: 'flex', gap: '0.3rem' }}>
-                        {cancelled && <Badge text="ENTFALL" bg="#c0392b" />}
-                        {sub && <Badge text="VERTR." bg="#ca8a04" />}
+                        {cancelled && <Badge text="ENTFALL" bg="var(--red)" />}
+                        {sub && <Badge text="VERTR." bg="var(--yellow)" fg="#000" />}
                       </div>
                     </div>
                   )
@@ -139,27 +145,27 @@ export default function Dashboard() {
               </div>
 
               {/* änderungen */}
-              <div style={{ ...G, padding: '1.5rem' }}>
-                <div style={{ fontSize: '0.6rem', letterSpacing: '0.2em', color: 'rgba(80,50,15,0.5)', marginBottom: '1.1rem', display: 'flex', justifyContent: 'space-between', ...mono }}>
+              <div style={{ ...glass, padding: '1.5rem' }}>
+                <div style={{ fontSize: '0.6rem', letterSpacing: '0.2em', color: 'var(--muted)', marginBottom: '1.1rem', display: 'flex', justifyContent: 'space-between', ...mono }}>
                   <span>ÄNDERUNGEN & AUSFÄLLE</span><span>2 WOCHEN</span>
                 </div>
                 {allChanges.length === 0 ? (
-                  <div style={{ color: '#16a34a', fontSize: '0.85rem', ...mono }}>Keine Änderungen ✓</div>
+                  <div style={{ color: 'var(--green)', fontSize: '0.85rem', ...mono }}>Keine Änderungen ✓</div>
                 ) : allChanges.map((l, i) => {
                   const date = parseUntisDate(l.date)
                   const cancelled = isCancelled(l)
                   return (
-                    <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.6rem 0', borderBottom: '1px solid rgba(200,155,80,0.18)' }}>
+                    <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.6rem 0', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
                       <div>
-                        <div style={{ fontSize: '0.88rem', fontWeight: 700, color: '#1a0e02', ...mono }}>
+                        <div style={{ fontSize: '0.88rem', fontWeight: 700, color: 'var(--text)', ...mono }}>
                           {l.su?.[0]?.name || '—'}
-                          <span style={{ fontWeight: 400, color: 'rgba(70,42,12,0.55)', marginLeft: '0.45rem', fontSize: '0.68rem' }}>
+                          <span style={{ fontWeight: 400, color: 'var(--muted)', marginLeft: '0.45rem', fontSize: '0.68rem' }}>
                             {dayLabel(date)} · {parseUntisTime(l.startTime)}
                           </span>
                         </div>
-                        {l.lstext && <div style={{ fontSize: '0.68rem', color: 'rgba(70,42,12,0.5)', marginTop: '0.12rem', ...mono }}>{l.lstext}</div>}
+                        {l.lstext && <div style={{ fontSize: '0.68rem', color: 'var(--muted2)', marginTop: '0.12rem', ...mono }}>{l.lstext}</div>}
                       </div>
-                      {cancelled ? <Badge text="ENTFALL" bg="#c0392b" /> : <Badge text="VERTR." bg="#ca8a04" />}
+                      {cancelled ? <Badge text="ENTFALL" bg="var(--red)" /> : <Badge text="VERTR." bg="var(--yellow)" fg="#000" />}
                     </div>
                   )
                 })}
