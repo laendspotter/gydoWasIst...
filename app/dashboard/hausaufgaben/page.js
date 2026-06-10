@@ -61,7 +61,7 @@ export default function Hausaufgaben() {
   const urgencyText = { red: 'var(--red)', yellow: 'var(--yellow)', normal: 'var(--muted)' }
 
   return (
-    <div style={{ minHeight: '100vh', background: 'var(--dark)' }}>
+    <div style={{ minHeight: '100vh', position: 'relative' }}>
       <DashNav username={username} clock={clock} />
       <div style={{ maxWidth: '900px', margin: '0 auto', padding: '2rem' }}>
         <div style={{ fontSize: '2rem', fontWeight: 700, marginBottom: '0.5rem' }}>Hausaufgaben</div>

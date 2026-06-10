@@ -68,7 +68,7 @@ export default function Zitate() {
   }
 
   return (
-    <div style={{ minHeight: '100vh', background: 'var(--dark)' }}>
+    <div style={{ minHeight: '100vh', position: 'relative' }}>
       <DashNav username={username} clock={clock} />
       <div style={{ maxWidth: '800px', margin: '0 auto', padding: '2rem' }}>
         <div style={{ marginBottom: '2rem' }}>
