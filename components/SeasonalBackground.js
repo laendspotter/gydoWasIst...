@@ -16,12 +16,12 @@ function SunsetBg() {
       style={{ position: 'fixed', inset: 0, width: '100%', height: '100%', zIndex: 0, pointerEvents: 'none' }}>
       <defs>
         <linearGradient id="sunsetSky" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%"   stopColor="#0a0a14" />
-          <stop offset="35%"  stopColor="#1a0a2e" />
-          <stop offset="58%"  stopColor="#6b1a3a" />
-          <stop offset="75%"  stopColor="#c0392b" />
-          <stop offset="88%"  stopColor="#e8620a" />
-          <stop offset="100%" stopColor="#ff9a2e" />
+          <stop offset="0%"   stopColor="#06060f" />
+          <stop offset="30%"  stopColor="#120820" />
+          <stop offset="55%"  stopColor="#3d0f22" />
+          <stop offset="72%"  stopColor="#7a2010" />
+          <stop offset="86%"  stopColor="#c04a08" />
+          <stop offset="100%" stopColor="#d97020" />
         </linearGradient>
         <linearGradient id="sunsetGlow" x1="0" y1="0" x2="0" y2="1">
           <stop offset="0%"   stopColor="#ff6b35" stopOpacity="0" />
@@ -92,14 +92,14 @@ function SunsetBg() {
       {/* sonne */}
       <g style={{ transformOrigin: '720px 620px', animation: 'sunPulse 5s ease-in-out infinite' }}>
         {/* outer glow */}
-        <circle cx="720" cy="620" r="140" fill="url(#sunCore)" opacity="0.15" filter="url(#blur8)" />
+        <circle cx="720" cy="620" r="140" fill="url(#sunCore)" opacity="0.1" filter="url(#blur8)" />
         {/* mid glow */}
-        <circle cx="720" cy="620" r="90" fill="#ff9a2e" opacity="0.25" filter="url(#blur4)" />
+        <circle cx="720" cy="620" r="90" fill="#e07820" opacity="0.18" filter="url(#blur4)" />
         {/* sun disc */}
-        <circle cx="720" cy="620" r="55" fill="#fff7e6" opacity="0.98" />
+        <circle cx="720" cy="620" r="52" fill="#ffe0a0" opacity="0.82" />
         {/* inner ring */}
-        <circle cx="720" cy="620" r="48" fill="#ffd166" />
-        <circle cx="720" cy="620" r="38" fill="#ffcc44" />
+        <circle cx="720" cy="620" r="44" fill="#ffc060" />
+        <circle cx="720" cy="620" r="34" fill="#ffaa44" />
       </g>
 
       {/* horizon glow streak */}
@@ -160,11 +160,13 @@ function SunsetBg() {
       {/* vignette oben */}
       <defs>
         <radialGradient id="vignette" cx="50%" cy="0%" r="80%">
-          <stop offset="0%" stopColor="#0a0a14" stopOpacity="0" />
-          <stop offset="100%" stopColor="#0a0a14" stopOpacity="0.5" />
+          <stop offset="0%" stopColor="#06060f" stopOpacity="0" />
+          <stop offset="100%" stopColor="#06060f" stopOpacity="0.6" />
         </radialGradient>
       </defs>
       <rect width="1440" height="400" fill="url(#vignette)" />
+      {/* overall dimming overlay for softer look */}
+      <rect width="1440" height="900" fill="#06060f" opacity="0.35" />
     </svg>
   )
 }
