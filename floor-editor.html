@@ -1,0 +1,539 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<title>Grundriss-Editor — Gydo</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'Courier New', monospace; background: #1a1a1a; color: #f0ece4; height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+
+/* ── TOP BAR ── */
+#topbar {
+  display: flex; align-items: center; gap: 1rem; padding: 0.6rem 1rem;
+  background: #111; border-bottom: 1px solid #333; flex-shrink: 0; flex-wrap: wrap;
+}
+#topbar h1 { font-size: 1rem; color: #ff6b35; white-space: nowrap; }
+.floor-btn {
+  padding: 0.3rem 0.8rem; border: 1px solid #444; background: #222;
+  color: #aaa; cursor: pointer; font-family: inherit; font-size: 0.8rem; border-radius: 4px;
+}
+.floor-btn.active { background: #ff6b35; color: #fff; border-color: #ff6b35; }
+#tool-group { display: flex; gap: 0.4rem; flex-wrap: wrap; }
+.tool-btn {
+  padding: 0.3rem 0.7rem; border: 1px solid #444; background: #222;
+  color: #ccc; cursor: pointer; font-family: inherit; font-size: 0.75rem; border-radius: 4px;
+  white-space: nowrap;
+}
+.tool-btn.active { border-color: #ff6b35; color: #ff6b35; }
+.tool-btn:hover { background: #2a2a2a; }
+#export-btn {
+  margin-left: auto; padding: 0.35rem 1rem; background: #ff6b35; border: none;
+  color: #fff; cursor: pointer; font-family: inherit; font-size: 0.8rem; border-radius: 4px;
+  white-space: nowrap;
+}
+#export-btn:hover { background: #e05a25; }
+#clear-btn {
+  padding: 0.35rem 0.7rem; background: #333; border: 1px solid #555;
+  color: #aaa; cursor: pointer; font-family: inherit; font-size: 0.75rem; border-radius: 4px;
+}
+#clear-btn:hover { background: #444; }
+
+/* ── MAIN AREA ── */
+#main { display: flex; flex: 1; overflow: hidden; }
+
+/* ── CANVAS ── */
+#canvas-wrap {
+  flex: 1; position: relative; overflow: hidden; background: #2a2a2a;
+  cursor: crosshair;
+}
+#canvas {
+  position: absolute; top: 0; left: 0;
+  width: 2400px; height: 1600px;
+  background:
+    linear-gradient(rgba(255,255,255,0.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,0.04) 1px, transparent 1px);
+  background-size: 40px 40px;
+}
+/* 10-cell major grid */
+#canvas::before {
+  content: '';
+  position: absolute; inset: 0;
+  background:
+    linear-gradient(rgba(255,255,255,0.08) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,0.08) 1px, transparent 1px);
+  background-size: 200px 200px;
+  pointer-events: none;
+}
+
+/* ── ELEMENT ON CANVAS ── */
+.room {
+  position: absolute;
+  border: 2px solid rgba(255,255,255,0.6);
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  cursor: grab; user-select: none;
+  border-radius: 3px;
+  transition: box-shadow 0.1s;
+  overflow: hidden;
+  min-width: 40px; min-height: 30px;
+}
+.room.selected {
+  box-shadow: 0 0 0 2px #ff6b35, 0 0 12px rgba(255,107,53,0.5);
+  z-index: 100 !important;
+}
+.room .label {
+  font-size: 11px; font-weight: 700; color: #fff; text-shadow: 0 1px 3px rgba(0,0,0,0.8);
+  text-align: center; padding: 2px; line-height: 1.2; pointer-events: none;
+}
+.room .sublabel {
+  font-size: 9px; color: rgba(255,255,255,0.75); pointer-events: none;
+}
+.room .resize-handle {
+  position: absolute; bottom: 0; right: 0;
+  width: 12px; height: 12px;
+  cursor: se-resize;
+  background: rgba(255,255,255,0.3);
+  clip-path: polygon(100% 0, 100% 100%, 0 100%);
+}
+
+/* ── SIDE PANEL ── */
+#panel {
+  width: 240px; flex-shrink: 0; background: #111; border-left: 1px solid #333;
+  display: flex; flex-direction: column; overflow: hidden;
+}
+#panel h2 { font-size: 0.75rem; color: #888; padding: 0.6rem 0.85rem; border-bottom: 1px solid #222; letter-spacing: 0.1em; }
+#props { padding: 0.75rem; flex: 1; overflow-y: auto; }
+.prop-row { margin-bottom: 0.65rem; }
+.prop-row label { display: block; font-size: 0.68rem; color: #888; margin-bottom: 0.2rem; letter-spacing: 0.08em; }
+.prop-row input, .prop-row select {
+  width: 100%; padding: 0.35rem 0.5rem; background: #1e1e1e; border: 1px solid #333;
+  color: #f0ece4; font-family: inherit; font-size: 0.8rem; border-radius: 3px; outline: none;
+}
+.prop-row input:focus, .prop-row select:focus { border-color: #ff6b35; }
+.color-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 4px; margin-top: 4px; }
+.color-swatch {
+  width: 100%; aspect-ratio: 1; border-radius: 3px; cursor: pointer;
+  border: 2px solid transparent; transition: border-color 0.1s;
+}
+.color-swatch.selected-c { border-color: #fff; }
+#delete-btn {
+  margin-top: 0.5rem; width: 100%; padding: 0.4rem; background: #3a1010; border: 1px solid #6a2020;
+  color: #ff8080; cursor: pointer; font-family: inherit; font-size: 0.78rem; border-radius: 3px;
+}
+#delete-btn:hover { background: #4a1515; }
+#no-sel { color: #555; font-size: 0.78rem; padding: 0.5rem 0; }
+
+/* ── OUTPUT ── */
+#output-wrap {
+  background: #0d0d0d; border-top: 1px solid #333; padding: 0.75rem;
+  max-height: 200px; display: none; flex-shrink: 0;
+}
+#output-wrap.visible { display: block; }
+#output-wrap h3 { font-size: 0.7rem; color: #ff6b35; margin-bottom: 0.5rem; letter-spacing: 0.1em; }
+#output {
+  width: 100%; height: 130px; background: #111; border: 1px solid #333;
+  color: #88cc88; font-family: 'Courier New', monospace; font-size: 0.72rem;
+  padding: 0.5rem; resize: none; outline: none;
+}
+#copy-btn {
+  margin-top: 0.4rem; padding: 0.3rem 0.8rem; background: #1a3a1a; border: 1px solid #3a6a3a;
+  color: #88cc88; cursor: pointer; font-family: inherit; font-size: 0.72rem; border-radius: 3px;
+}
+
+/* ── STATUS BAR ── */
+#statusbar {
+  font-size: 0.65rem; color: #555; padding: 0.3rem 1rem;
+  background: #111; border-top: 1px solid #222; flex-shrink: 0;
+}
+</style>
+</head>
+<body>
+
+<div id="topbar">
+  <h1>Grundriss-Editor</h1>
+
+  <!-- Etagen -->
+  <div style="display:flex;gap:0.3rem">
+    <button class="floor-btn active" data-floor="EG">EG</button>
+    <button class="floor-btn" data-floor="1OG">1.OG</button>
+    <button class="floor-btn" data-floor="2OG">2.OG</button>
+  </div>
+
+  <div style="width:1px;height:24px;background:#333"></div>
+
+  <!-- Werkzeuge -->
+  <div id="tool-group">
+    <button class="tool-btn active" data-type="room">🏫 Zimmer</button>
+    <button class="tool-btn" data-type="corridor">🛤 Flur</button>
+    <button class="tool-btn" data-type="entrance">🚪 Eingang</button>
+    <button class="tool-btn" data-type="elevator">🛗 Aufzug</button>
+    <button class="tool-btn" data-type="stairs">🪜 Treppe</button>
+    <button class="tool-btn" data-type="wc">🚻 WC</button>
+    <button class="tool-btn" data-type="special">⭐ Sonder</button>
+  </div>
+
+  <button id="clear-btn" onclick="clearFloor()">Etage leeren</button>
+  <button id="export-btn" onclick="exportData()">JSON exportieren →</button>
+</div>
+
+<div id="main">
+  <div id="canvas-wrap">
+    <div id="canvas"></div>
+  </div>
+
+  <div id="panel">
+    <h2>EIGENSCHAFTEN</h2>
+    <div id="props">
+      <div id="no-sel">Kein Element ausgewählt.<br><br>Klick auf die Fläche = neues Element platzieren.<br>Dann Beschriftung & Größe anpassen.</div>
+      <div id="sel-props" style="display:none">
+        <div class="prop-row">
+          <label>BEZEICHNUNG</label>
+          <input id="p-label" type="text" placeholder="z.B. 101" oninput="updateSelected('label', this.value)">
+        </div>
+        <div class="prop-row">
+          <label>TYP</label>
+          <select id="p-type" onchange="updateSelected('type', this.value)">
+            <option value="room">Zimmer</option>
+            <option value="corridor">Flur</option>
+            <option value="entrance">Eingang</option>
+            <option value="elevator">Aufzug</option>
+            <option value="stairs">Treppe</option>
+            <option value="wc">WC</option>
+            <option value="special">Sonderraum</option>
+          </select>
+        </div>
+        <div class="prop-row">
+          <label>BREITE (px)</label>
+          <input id="p-w" type="number" min="40" step="10" oninput="updateSelected('w', +this.value)">
+        </div>
+        <div class="prop-row">
+          <label>HÖHE (px)</label>
+          <input id="p-h" type="number" min="30" step="10" oninput="updateSelected('h', +this.value)">
+        </div>
+        <div class="prop-row">
+          <label>FARBE</label>
+          <div class="color-grid" id="color-grid"></div>
+        </div>
+        <button id="delete-btn" onclick="deleteSelected()">🗑 Löschen</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="output-wrap">
+  <h3>JSON — KOPIEREN UND AN CLAUDE SCHICKEN</h3>
+  <textarea id="output" readonly></textarea>
+  <button id="copy-btn" onclick="copyOutput()">📋 Kopieren</button>
+</div>
+
+<div id="statusbar" id="statusbar">Klick auf die Fläche um ein Element zu platzieren · Ziehen zum Verschieben · Ecke ziehen zum Skalieren</div>
+
+<script>
+// ── State ──────────────────────────────────────────────────────
+const GRID = 10; // snap to 10px
+let currentFloor = 'EG';
+let currentTool = 'room';
+let selectedId = null;
+let elements = { EG: [], '1OG': [], '2OG': [] };
+let nextId = 1;
+let dragging = null; // { id, offX, offY }
+let resizing = null; // { id, startX, startY, startW, startH }
+let canvasOffset = { x: 0, y: 0 }; // pan offset
+let panning = false;
+let panStart = null;
+
+const TYPE_COLORS = {
+  room:     '#3a88a8',
+  corridor: '#7aaa60',
+  entrance: '#c0392b',
+  elevator: '#1a6040',
+  stairs:   '#1a6040',
+  wc:       '#2a5aaa',
+  special:  '#7a5090',
+};
+const PALETTE = [
+  '#3a88a8','#3aaa88','#88aa3a','#aa883a','#aa3a3a',
+  '#7a5090','#c0392b','#2a5aaa','#1a6040','#7aaa60',
+  '#888888','#555588','#885555','#558855','#aa8844',
+];
+
+// ── Init ───────────────────────────────────────────────────────
+const canvas = document.getElementById('canvas');
+const canvasWrap = document.getElementById('canvas-wrap');
+
+// Color palette
+const colorGrid = document.getElementById('color-grid');
+PALETTE.forEach(c => {
+  const sw = document.createElement('div');
+  sw.className = 'color-swatch';
+  sw.style.background = c;
+  sw.dataset.color = c;
+  sw.onclick = () => { updateSelected('color', c); setActiveColor(c); };
+  colorGrid.appendChild(sw);
+});
+
+function setActiveColor(c) {
+  document.querySelectorAll('.color-swatch').forEach(s => s.classList.toggle('selected-c', s.dataset.color === c));
+}
+
+// Floor buttons
+document.querySelectorAll('.floor-btn').forEach(b => {
+  b.onclick = () => {
+    currentFloor = b.dataset.floor;
+    document.querySelectorAll('.floor-btn').forEach(x => x.classList.remove('active'));
+    b.classList.add('active');
+    deselect();
+    renderFloor();
+  };
+});
+
+// Tool buttons
+document.querySelectorAll('.tool-btn').forEach(b => {
+  b.onclick = () => {
+    currentTool = b.dataset.type;
+    document.querySelectorAll('.tool-btn').forEach(x => x.classList.remove('active'));
+    b.classList.add('active');
+  };
+});
+
+// ── Canvas click → place element ──────────────────────────────
+canvasWrap.addEventListener('mousedown', e => {
+  if (e.target !== canvasWrap && e.target !== canvas && !e.target.classList.contains('room')) return;
+  if (e.target === canvasWrap || e.target === canvas) {
+    if (e.button === 1 || e.altKey) {
+      // Pan mode
+      panning = true;
+      panStart = { x: e.clientX - canvasOffset.x, y: e.clientY - canvasOffset.y };
+      canvasWrap.style.cursor = 'grabbing';
+      return;
+    }
+    // Place new element
+    const rect = canvasWrap.getBoundingClientRect();
+    const x = snap(e.clientX - rect.left - canvasOffset.x);
+    const y = snap(e.clientY - rect.top - canvasOffset.y);
+    placeElement(x, y);
+    e.preventDefault();
+  }
+});
+
+canvasWrap.addEventListener('mousemove', e => {
+  if (panning) {
+    canvasOffset.x = e.clientX - panStart.x;
+    canvasOffset.y = e.clientY - panStart.y;
+    canvas.style.transform = `translate(${canvasOffset.x}px,${canvasOffset.y}px)`;
+    return;
+  }
+  if (dragging) {
+    const rect = canvasWrap.getBoundingClientRect();
+    const x = snap(e.clientX - rect.left - canvasOffset.x - dragging.offX);
+    const y = snap(e.clientY - rect.top - canvasOffset.y - dragging.offY);
+    const el = elements[currentFloor].find(e => e.id === dragging.id);
+    if (el) { el.x = Math.max(0, x); el.y = Math.max(0, y); renderFloor(); }
+  }
+  if (resizing) {
+    const el = elements[currentFloor].find(e => e.id === resizing.id);
+    if (el) {
+      const dx = e.clientX - resizing.startMouseX;
+      const dy = e.clientY - resizing.startMouseY;
+      el.w = Math.max(40, snap(resizing.startW + dx));
+      el.h = Math.max(30, snap(resizing.startH + dy));
+      renderFloor();
+      updatePropsPanel(el);
+    }
+  }
+  // status bar coords
+  const rect = canvasWrap.getBoundingClientRect();
+  const x = Math.round(e.clientX - rect.left - canvasOffset.x);
+  const y = Math.round(e.clientY - rect.top - canvasOffset.y);
+  document.getElementById('statusbar').textContent = `x:${x} y:${y} · Etage: ${currentFloor} · ${elements[currentFloor].length} Elemente · Alt+Ziehen = verschieben der Ansicht`;
+});
+
+canvasWrap.addEventListener('mouseup', e => {
+  panning = false;
+  dragging = null;
+  resizing = null;
+  canvasWrap.style.cursor = 'crosshair';
+});
+canvasWrap.addEventListener('mouseleave', () => {
+  panning = false; dragging = null; resizing = null;
+});
+
+// ── Place element ──────────────────────────────────────────────
+function placeElement(x, y) {
+  const defaults = {
+    room:     { w: 80, h: 70, label: String(nextId).padStart(3,'0') },
+    corridor: { w: 200, h: 30, label: 'Flur' },
+    entrance: { w: 60, h: 60, label: 'Eingang' },
+    elevator: { w: 50, h: 50, label: 'Aufzug' },
+    stairs:   { w: 50, h: 60, label: 'Treppe' },
+    wc:       { w: 50, h: 60, label: 'WC' },
+    special:  { w: 100, h: 80, label: 'Sonder' },
+  };
+  const d = defaults[currentTool];
+  const el = {
+    id: nextId++,
+    type: currentTool,
+    label: d.label,
+    x, y, w: d.w, h: d.h,
+    color: TYPE_COLORS[currentTool],
+    floor: currentFloor,
+  };
+  elements[currentFloor].push(el);
+  renderFloor();
+  selectElement(el.id);
+}
+
+// ── Render ──────────────────────────────────────────────────────
+function renderFloor() {
+  // Remove all room divs
+  canvas.querySelectorAll('.room').forEach(r => r.remove());
+  elements[currentFloor].forEach(el => {
+    const div = document.createElement('div');
+    div.className = 'room' + (el.id === selectedId ? ' selected' : '');
+    div.dataset.id = el.id;
+    div.style.cssText = `left:${el.x}px;top:${el.y}px;width:${el.w}px;height:${el.h}px;background:${el.color};opacity:0.88;z-index:${el.type==='corridor'?1:10}`;
+
+    const lbl = document.createElement('div');
+    lbl.className = 'label';
+    lbl.textContent = el.label;
+    div.appendChild(lbl);
+
+    // Type icon as sublabel
+    const icons = { entrance:'🚪', elevator:'🛗', stairs:'🪜', wc:'🚻', special:'⭐', corridor:'', room:'' };
+    if (icons[el.type]) {
+      const sub = document.createElement('div');
+      sub.className = 'sublabel';
+      sub.textContent = icons[el.type];
+      div.appendChild(sub);
+    }
+
+    // Resize handle
+    const handle = document.createElement('div');
+    handle.className = 'resize-handle';
+    div.appendChild(handle);
+
+    // Mouse events
+    div.addEventListener('mousedown', e => {
+      e.stopPropagation();
+      if (e.target.classList.contains('resize-handle')) {
+        resizing = { id: el.id, startMouseX: e.clientX, startMouseY: e.clientY, startW: el.w, startH: el.h };
+        return;
+      }
+      const r = div.getBoundingClientRect();
+      dragging = { id: el.id, offX: e.clientX - r.left, offY: e.clientY - r.top };
+      selectElement(el.id);
+    });
+
+    canvas.appendChild(div);
+  });
+}
+
+// ── Select ──────────────────────────────────────────────────────
+function selectElement(id) {
+  selectedId = id;
+  const el = elements[currentFloor].find(e => e.id === id);
+  renderFloor();
+  if (el) {
+    document.getElementById('no-sel').style.display = 'none';
+    document.getElementById('sel-props').style.display = 'block';
+    document.getElementById('p-label').value = el.label;
+    document.getElementById('p-type').value = el.type;
+    document.getElementById('p-w').value = el.w;
+    document.getElementById('p-h').value = el.h;
+    setActiveColor(el.color);
+  }
+}
+
+function deselect() {
+  selectedId = null;
+  renderFloor();
+  document.getElementById('no-sel').style.display = 'block';
+  document.getElementById('sel-props').style.display = 'none';
+}
+
+function updatePropsPanel(el) {
+  document.getElementById('p-w').value = el.w;
+  document.getElementById('p-h').value = el.h;
+}
+
+// ── Update selected ─────────────────────────────────────────────
+function updateSelected(key, val) {
+  if (!selectedId) return;
+  const el = elements[currentFloor].find(e => e.id === selectedId);
+  if (!el) return;
+  el[key] = val;
+  if (key === 'type') el.color = TYPE_COLORS[val];
+  renderFloor();
+}
+
+function deleteSelected() {
+  if (!selectedId) return;
+  elements[currentFloor] = elements[currentFloor].filter(e => e.id !== selectedId);
+  deselect();
+}
+
+function clearFloor() {
+  if (!confirm(`Alle Elemente auf ${currentFloor} löschen?`)) return;
+  elements[currentFloor] = [];
+  deselect();
+}
+
+// ── Snap ────────────────────────────────────────────────────────
+function snap(v) { return Math.round(v / GRID) * GRID; }
+
+// ── Export ──────────────────────────────────────────────────────
+function exportData() {
+  // Normalize to 0-based coords per floor, strip internal ids
+  const out = {};
+  ['EG','1OG','2OG'].forEach(floor => {
+    if (!elements[floor].length) return;
+    out[floor] = elements[floor].map(e => ({
+      id:    e.label,
+      type:  e.type,
+      x:     e.x,
+      y:     e.y,
+      w:     e.w,
+      h:     e.h,
+      color: e.color,
+    }));
+  });
+  const json = JSON.stringify(out, null, 2);
+  const wrap = document.getElementById('output-wrap');
+  wrap.classList.add('visible');
+  document.getElementById('output').value = json;
+}
+
+function copyOutput() {
+  const ta = document.getElementById('output');
+  ta.select();
+  document.execCommand('copy');
+  document.getElementById('copy-btn').textContent = '✓ Kopiert!';
+  setTimeout(() => document.getElementById('copy-btn').textContent = '📋 Kopieren', 1500);
+}
+
+// ── Keyboard ────────────────────────────────────────────────────
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') deselect();
+  if ((e.key === 'Delete' || e.key === 'Backspace') && selectedId && document.activeElement.tagName !== 'INPUT') {
+    deleteSelected();
+  }
+  // Arrow keys nudge selected
+  if (selectedId && ['ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.key)) {
+    const el = elements[currentFloor].find(x => x.id === selectedId);
+    if (el) {
+      const d = e.shiftKey ? GRID * 4 : GRID;
+      if (e.key === 'ArrowUp') el.y -= d;
+      if (e.key === 'ArrowDown') el.y += d;
+      if (e.key === 'ArrowLeft') el.x -= d;
+      if (e.key === 'ArrowRight') el.x += d;
+      renderFloor();
+      e.preventDefault();
+    }
+  }
+});
+
+// ── Init render ─────────────────────────────────────────────────
+renderFloor();
+</script>
+</body>
+</html>
