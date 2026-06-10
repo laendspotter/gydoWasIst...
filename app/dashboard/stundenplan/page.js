@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import DashNav from '../../../components/DashNav'
 import { parseUntisDate, parseUntisTime, isCancelled, isSubstitution, dayLabel } from '../../../lib/untis'
+import { glass } from '../../../lib/styles'
 
 export default function Stundenplan() {
   const router = useRouter()
